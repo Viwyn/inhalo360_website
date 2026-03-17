@@ -229,7 +229,16 @@ export function ARCamera() {
         const hit = res.detections.find(d =>
           d.categories.some(c => INHALER_LABELS.has(c.categoryName.toLowerCase()))
         );
-        setInhalerDetected(!!hit);
+        if (hit) {
+           setInhalerDetected(true);
+           if (!(window as any).__inhalerSeen) (window as any).__inhalerSeen = {};
+           if (currentStep === 0) (window as any).__inhalerSeen[0] = true;
+        } else {
+           // If we are in step 0 and have seen it once, do not un-detect it.
+           if (!(currentStep === 0 && (window as any).__inhalerSeen?.[0])) {
+              setInhalerDetected(false);
+           }
+        }
       } catch { /* ignore */ }
     }
 
@@ -305,41 +314,74 @@ export function ARCamera() {
       if (!inhalerHit?.boundingBox) {
          drawInhalerAR(ctx, inhalerCx, inhalerCy, scale, primary, now);
       }
+    }
 
-      // ── Gesture detection for auto-advance ─────────────────────────────
-      const velocity = prevWristRef.current
-        ? Math.hypot(wrist.x - prevWristRef.current.x, wrist.y - prevWristRef.current.y) : 0;
-      prevWristRef.current = { x: wrist.x, y: wrist.y };
+    // ── Gesture detection for auto-advance ─────────────────────────────
+    let match = false;
+    
+    if (handLMs) {
+      if (step.detectMode !== 'shake') {
+        const wrist = handLMs[0];
+        const velocity = prevWristRef.current
+          ? Math.hypot(wrist.x - prevWristRef.current.x, wrist.y - prevWristRef.current.y) : 0;
+        prevWristRef.current = { x: wrist.x, y: wrist.y };
 
-      let match = false;
-      switch (step.detectMode) {
-        case 'shake':    match = velocity > 0.03; break;
-        case 'hand_high': match = wrist.y < 0.55; break;
-        case 'hand_low':  match = wrist.y > 0.5; break;
-        case 'hold_low':  match = wrist.y > 0.4 && velocity < 0.01; break;
-        case 'still':     match = velocity < 0.008; break;
-      }
-
-      // No longer blocked strictly by inhalerHit for testing ease, just requires correct hand gesture
-      if (match) { 
-        stepHoldRef.current += 1;
-        if (stepHoldRef.current >= 90 && !evaluated[currentStep]) {
-          stepHoldRef.current = 0;
-          setAutoDetected(true);
-          markCurrent('pass');
+        switch (step.detectMode) {
+          case 'hand_high': match = wrist.y < 0.55; break;
+          case 'hand_low':  match = wrist.y > 0.5; break;
+          case 'hold_low':  match = wrist.y > 0.4 && velocity < 0.01; break;
+          case 'still':     match = velocity < 0.008; break;
         }
-        // Confidence arc
-        const hp = Math.min(stepHoldRef.current / 90, 1);
+      }
+    }
+
+    if (step.detectMode === 'shake') {
+       match = !!(window as any).__inhalerSeen?.[0];
+    }
+
+    const targetFrames = step.detectMode === 'shake' ? 300 : 90; // 300 frames ≈ 5 seconds at 60fps
+
+    if (match) { 
+      stepHoldRef.current += 1;
+      if (stepHoldRef.current >= targetFrames && !evaluated[currentStep]) {
+        stepHoldRef.current = 0;
+        setAutoDetected(true);
+        markCurrent('pass');
+      }
+      // Confidence arc
+      const hp = Math.min(stepHoldRef.current / targetFrames, 1);
+      const ax = W - 58, ay = H - 96;
+      ctx.beginPath(); ctx.arc(ax, ay, 26, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(ax, ay, 26, -Math.PI / 2, -Math.PI / 2 + hp * 2 * Math.PI);
+      ctx.strokeStyle = primary; ctx.lineWidth = 5;
+      ctx.shadowColor = primary; ctx.shadowBlur = 10; ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(10, W * 0.014)}px Inter,sans-serif`;
+      ctx.textAlign = 'center'; 
+      if (step.detectMode === 'shake') {
+        const seconds = (stepHoldRef.current / 60).toFixed(1);
+        ctx.fillText(`${seconds}s`, ax, ay + 4);
+      } else {
+        ctx.fillText(`${Math.round(hp * 100)}%`, ax, ay + 4);
+      }
+    } else {
+      stepHoldRef.current = Math.max(0, stepHoldRef.current - 2);
+      if (stepHoldRef.current > 0) {
+        const hp = Math.min(stepHoldRef.current / targetFrames, 1);
         const ax = W - 58, ay = H - 96;
         ctx.beginPath(); ctx.arc(ax, ay, 26, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 5; ctx.stroke();
         ctx.beginPath(); ctx.arc(ax, ay, 26, -Math.PI / 2, -Math.PI / 2 + hp * 2 * Math.PI);
-        ctx.strokeStyle = primary; ctx.lineWidth = 5;
-        ctx.shadowColor = primary; ctx.shadowBlur = 10; ctx.stroke(); ctx.shadowBlur = 0;
-        ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(10, W * 0.014)}px Inter,sans-serif`;
-        ctx.textAlign = 'center'; ctx.fillText(`${Math.round(hp * 100)}%`, ax, ay + 4);
-      } else {
-        stepHoldRef.current = Math.max(0, stepHoldRef.current - 2);
+        ctx.strokeStyle = primary + '88'; ctx.lineWidth = 5;
+        ctx.stroke(); 
+        ctx.fillStyle = '#fffa'; ctx.font = `bold ${Math.max(10, W * 0.014)}px Inter,sans-serif`;
+        ctx.textAlign = 'center';
+        if (step.detectMode === 'shake') {
+          const seconds = (stepHoldRef.current / 60).toFixed(1);
+          ctx.fillText(`${seconds}s`, ax, ay + 4);
+        } else {
+          ctx.fillText(`${Math.round(hp * 100)}%`, ax, ay + 4);
+        }
       }
     }
 
