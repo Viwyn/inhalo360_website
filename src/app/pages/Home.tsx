@@ -56,7 +56,12 @@ export function Home() {
                     {t('home.hero.cta.primary')}
                   </Button>
                 </Link>
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-blue-600 text-blue-600 hover:bg-blue-50">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full sm:w-auto border-blue-600 text-blue-600 hover:bg-blue-50"
+                  onClick={() => window.open('http://inhalo-360.vercel.app/', '_blank')}
+                >
                   {t('home.hero.cta.secondary')}
                 </Button>
               </div>
