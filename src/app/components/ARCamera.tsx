@@ -90,6 +90,7 @@ export function ARCamera() {
   const objFrameRef = useRef(0); // throttle object detection
   const prevWristRef = useRef<{ x: number; y: number } | null>(null);
   const stepHoldRef = useRef(0);
+  const lastFrameTimeRef = useRef<number>(performance.now());
 
   const [cameraActive, setCameraActive] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -114,11 +115,21 @@ export function ARCamera() {
     setEvaluated(prev => ({ ...prev, [idx]: result }));
     stepHoldRef.current = 0;
     if (result === 'pass' && idx < STEPS.length - 1) {
-      setTimeout(() => { setCurrentStep(s => Math.min(s + 1, STEPS.length - 1)); setAutoDetected(false); }, 600);
+      setTimeout(() => { 
+        setCurrentStep(s => Math.min(s + 1, STEPS.length - 1)); 
+        setAutoDetected(false); 
+      }, 200);
     }
   }, [currentStep]);
 
-  const resetAll = () => { setEvaluated({}); setCurrentStep(0); setAutoDetected(false); };
+  const resetAll = () => { 
+    setEvaluated({}); 
+    setCurrentStep(0); 
+    setAutoDetected(false); 
+    (window as any).__inhalerSeen = {};
+    stepHoldRef.current = 0;
+    prevWristRef.current = null;
+  };
 
   // ── Load both MediaPipe models ────────────────────────────────────────────
   useEffect(() => {
@@ -336,52 +347,98 @@ export function ARCamera() {
     }
 
     if (step.detectMode === 'shake') {
+       // Shake mode starts AUTOMATICALLY once inhaler is detected and STAYS active
        match = !!(window as any).__inhalerSeen?.[0];
     }
 
-    const targetFrames = step.detectMode === 'shake' ? 300 : 90; // 300 frames ≈ 5 seconds at 60fps
+    if (currentStep === 1) { // Step 2: Remove the Cap
+       // Trigger: Inhaler must be detected AND we see two hands (simulating the opening action)
+       const twoHands = lastHandRef.current?.landmarks.length && lastHandRef.current.landmarks.length >= 2;
+       match = inhalerDetected && !!twoHands;
+    }
+
+    const delta = now - lastFrameTimeRef.current;
+    lastFrameTimeRef.current = now;
+
+    const targetMs = step.detectMode === 'shake' ? 5000 : (currentStep === 1 ? 2500 : 1500); 
 
     if (match) { 
-      stepHoldRef.current += 1;
-      if (stepHoldRef.current >= targetFrames && !evaluated[currentStep]) {
+      stepHoldRef.current += delta;
+      if (stepHoldRef.current >= targetMs && !evaluated[currentStep]) {
         stepHoldRef.current = 0;
         setAutoDetected(true);
         markCurrent('pass');
       }
-      // Confidence arc
-      const hp = Math.min(stepHoldRef.current / targetFrames, 1);
+      
+      // Countdown / Progress Visuals
+      const hp = Math.min(stepHoldRef.current / targetMs, 1);
       const ax = W - 58, ay = H - 96;
-      ctx.beginPath(); ctx.arc(ax, ay, 26, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 5; ctx.stroke();
-      ctx.beginPath(); ctx.arc(ax, ay, 26, -Math.PI / 2, -Math.PI / 2 + hp * 2 * Math.PI);
-      ctx.strokeStyle = primary; ctx.lineWidth = 5;
-      ctx.shadowColor = primary; ctx.shadowBlur = 10; ctx.stroke(); ctx.shadowBlur = 0;
-      ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(10, W * 0.014)}px Inter,sans-serif`;
-      ctx.textAlign = 'center'; 
-      if (step.detectMode === 'shake') {
-        const seconds = (stepHoldRef.current / 60).toFixed(1);
-        ctx.fillText(`${seconds}s`, ax, ay + 4);
+      
+      // Draw background circle
+      ctx.beginPath(); ctx.arc(ax, ay, 32, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+      
+      // Draw track
+      ctx.beginPath(); ctx.arc(ax, ay, 28, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 6; ctx.stroke();
+      
+      // Draw progress arc
+      ctx.beginPath(); ctx.arc(ax, ay, 28, -Math.PI / 2, -Math.PI / 2 + hp * 2 * Math.PI);
+      ctx.strokeStyle = primary; ctx.lineWidth = 6;
+      ctx.shadowColor = primary; ctx.shadowBlur = 15; ctx.stroke(); ctx.shadowBlur = 0;
+      
+      ctx.fillStyle = '#fff'; 
+      ctx.textAlign = 'center';
+      
+      if (step.detectMode === 'shake' || currentStep === 1) {
+        // True Countdown display
+        const remaining = Math.max(0, (targetMs - stepHoldRef.current) / 1000);
+        ctx.font = `bold ${Math.max(14, W * 0.018)}px Inter,sans-serif`;
+        ctx.fillText(`${remaining.toFixed(1)}s`, ax, ay + 6);
+        
+        // Central AR Instruction Overlay
+        const displaySec = Math.ceil(remaining);
+        ctx.save();
+        
+        // Background blur/backing for readability
+        const text = currentStep === 0 
+          ? `Shake your inhaler for ${displaySec} seconds`
+          : `Remove the mouthpiece cap: ${displaySec}`;
+        
+        ctx.font = `bold ${Math.max(20, W * 0.03)}px Inter,sans-serif`;
+        const tw = ctx.measureText(text).width;
+        const th = Math.max(20, W * 0.03);
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath();
+        ctx.roundRect?.(W / 2 - tw / 2 - 20, H / 2 - 80, tw + 40, th + 40, 15) ?? ctx.rect(W / 2 - tw / 2 - 20, H / 2 - 80, tw + 40, th + 40);
+        ctx.fill();
+
+        // Main text with glow
+        ctx.fillStyle = '#fff';
+        ctx.shadowColor = primary; ctx.shadowBlur = 15;
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 0.9 + Math.sin(now / 150) * 0.1;
+        ctx.fillText(text, W / 2, H / 2 - 40 + th/4);
+        
+        ctx.restore();
       } else {
-        ctx.fillText(`${Math.round(hp * 100)}%`, ax, ay + 4);
+        ctx.font = `bold ${Math.max(12, W * 0.016)}px Inter,sans-serif`;
+        ctx.fillText(`${Math.round(hp * 100)}%`, ax, ay + 6);
       }
     } else {
-      stepHoldRef.current = Math.max(0, stepHoldRef.current - 2);
+      // Decay progress if interrupted (only for non-persistent modes)
+      if (step.detectMode !== 'shake') {
+        stepHoldRef.current = Math.max(0, stepHoldRef.current - delta * 0.5);
+      }
+      
       if (stepHoldRef.current > 0) {
-        const hp = Math.min(stepHoldRef.current / targetFrames, 1);
+        const hp = Math.min(stepHoldRef.current / targetMs, 1);
         const ax = W - 58, ay = H - 96;
-        ctx.beginPath(); ctx.arc(ax, ay, 26, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 5; ctx.stroke();
-        ctx.beginPath(); ctx.arc(ax, ay, 26, -Math.PI / 2, -Math.PI / 2 + hp * 2 * Math.PI);
-        ctx.strokeStyle = primary + '88'; ctx.lineWidth = 5;
-        ctx.stroke(); 
-        ctx.fillStyle = '#fffa'; ctx.font = `bold ${Math.max(10, W * 0.014)}px Inter,sans-serif`;
-        ctx.textAlign = 'center';
-        if (step.detectMode === 'shake') {
-          const seconds = (stepHoldRef.current / 60).toFixed(1);
-          ctx.fillText(`${seconds}s`, ax, ay + 4);
-        } else {
-          ctx.fillText(`${Math.round(hp * 100)}%`, ax, ay + 4);
-        }
+        ctx.beginPath(); ctx.arc(ax, ay, 28, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 6; ctx.stroke();
+        ctx.beginPath(); ctx.arc(ax, ay, 28, -Math.PI / 2, -Math.PI / 2 + hp * 2 * Math.PI);
+        ctx.strokeStyle = primary + '66'; ctx.lineWidth = 6; ctx.stroke(); 
       }
     }
 

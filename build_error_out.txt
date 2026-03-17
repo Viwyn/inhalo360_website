@@ -1,0 +1,19 @@
+
+> @figma/my-make-file@0.0.1 build
+> vite build
+
+[36mvite v6.3.5 [32mbuilding for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 2102 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                          [39m[1m[2m  0.46 kB[22m[1m[22m[2m Γöé gzip:   0.30 kB[22m
+[2mdist/[22m[32massets/woman-inhaler-DDJhr8Pz.webp  [39m[1m[2m 59.52 kB[22m[1m[22m
+[2mdist/[22m[35massets/index-D7Ln0wff.css           [39m[1m[2m126.77 kB[22m[1m[22m[2m Γöé gzip:  19.57 kB[22m
+[2mdist/[22m[36massets/index-DlSKm1C7.js            [39m[1m[33m673.81 kB[39m[22m[2m Γöé gzip: 213.67 kB[22m
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[32mΓ£ô built in 7.16s[39m

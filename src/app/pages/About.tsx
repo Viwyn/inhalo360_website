@@ -27,11 +27,41 @@ const mentors = [
 ];
 
 const teamMembers = [
-  { name: 'Ooi Wei Chuen', role: '3D Design Lead', phone: '+60 12-489 0755', email: '0372374@sd.taylors.edu.my' },
-  { name: 'Sim Hong Bing', role: 'AI / ML Engineer', phone: '+60 18-985 5802', email: 'hongbing.sim@sd.taylors.edu.my' },
-  { name: 'Lim Yun Xuan', role: 'AR / CV Engineer', phone: '+60 11-314 2776', email: 'yunxuan.lim03@sd.taylors.edu.my' },
-  { name: 'Hassan Gohar', role: 'UI / UX Designer', phone: '+60 12-659 5542', email: 'gohar.hassan@sd.taylors.edu.my' },
-  { name: 'Htet Aung Shine', role: '3D & System Architect', phone: '+60 17-283 6307', email: 'htetaung.shine@sd.taylors.edu.my' }
+  { 
+    name: 'Sim Hong Bing', 
+    role: 'AI/ML Engineer', 
+    phone: '+60 18-985 5802', 
+    email: 'hongbing.sim@sd.taylors.edu.my',
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200&h=200' 
+  },
+  { 
+    name: 'Lim Yun Xuan', 
+    role: 'AR/CV Lead', 
+    phone: '+60 11-314 2776', 
+    email: 'yunxuan.lim03@sd.taylors.edu.my',
+    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200&h=200' 
+  },
+  { 
+    name: 'Ooi Wei Chuen', 
+    role: '3D Design Lead', 
+    phone: '+60 12-489 0755', 
+    email: '0372374@sd.taylors.edu.my',
+    image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200&h=200' 
+  },
+  { 
+    name: 'Hassan Gohar', 
+    role: 'UI/UX Designer', 
+    phone: '+60 12-659 5542', 
+    email: 'gohar.hassan@sd.taylors.edu.my',
+    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200&h=200' 
+  },
+  { 
+    name: 'Htet Aung Shine', 
+    role: '3D & System Architect', 
+    phone: '+60 17-283 6307', 
+    email: 'htetaung.shine@sd.taylors.edu.my',
+    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200&h=200' 
+  }
 ];
 
 export function About() {
@@ -247,9 +277,9 @@ export function About() {
                       <div className="relative mx-auto mb-5">
                         <div className="absolute inset-0 bg-blue-100 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         <img
-                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.name.replace(/[^a-zA-Z\s]/g, ''))}&background=random&color=fff&size=128&bold=true`}
+                          src={member.image}
                           alt={member.name}
-                          className="relative w-28 h-28 rounded-full border-4 border-white shadow-md group-hover:shadow-lg transition-all duration-300"
+                          className="relative w-28 h-28 rounded-full border-4 border-white shadow-md group-hover:shadow-lg transition-all duration-300 object-cover"
                         />
                       </div>
 

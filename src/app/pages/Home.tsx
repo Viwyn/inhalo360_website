@@ -145,7 +145,7 @@ export function Home() {
                 Ready to Transform Your Inhaler Technique?
               </h2>
               <p className="text-xl mb-8 text-blue-100 leading-relaxed">
-                Join thousands of patients and healthcare professionals who are already improving their MDI technique with Inhalo 360°.
+                Join thousands of patients and healthcare professionals who are already improving their MDI technique with Inhalo360°.
               </p>
               <Link to="/training">
                 <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
